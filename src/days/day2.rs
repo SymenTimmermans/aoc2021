@@ -1,5 +1,3 @@
-
-
 use std::io::BufRead;
 use std::{fs::File, io::BufReader};
 
@@ -45,10 +43,10 @@ impl Position {
 
     fn move_command2(&mut self, cmd: &Command) {
         match cmd {
-            Command::Forward(x) => { 
+            Command::Forward(x) => {
                 self.h += x;
                 self.d += self.a * x;
-            },
+            }
             Command::Down(x) => self.a += x,
             Command::Up(x) => self.a -= x,
         }
@@ -62,7 +60,8 @@ impl Position {
 fn read_commands(file_path: &str) -> Vec<Command> {
     let file = File::open(file_path).expect("file not found");
     let reader = BufReader::new(file);
-    reader.lines()
+    reader
+        .lines()
         .map(|l| l.expect("failed to parse line"))
         .map(|l| l.as_str().into())
         .collect()
