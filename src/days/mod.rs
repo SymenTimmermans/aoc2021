@@ -5,9 +5,11 @@ use std::{fs::File, io::BufReader};
 
 pub mod day2;
 pub mod day3;
+pub mod day4;
 
 pub use day2::*;
 pub use day3::*;
+pub use day4::*;
 
 fn read_ints(file_path: &str) -> Vec<i32> {
     let file = File::open(file_path).expect("file not found");
