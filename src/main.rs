@@ -6,5 +6,5 @@ fn main() {
     //   day1();
     // day1b();
     // day2b();
-    day5b();
+    day6();
 }
