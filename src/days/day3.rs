@@ -53,7 +53,8 @@ fn rating_finder(numbers: &[String], most_common: bool) -> i32 {
         // the current position
         candidates = candidates
             .iter()
-            .filter(|number| number.chars().nth(pos).unwrap() == digit).cloned()
+            .filter(|number| number.chars().nth(pos).unwrap() == digit)
+            .cloned()
             .collect();
 
         pos += 1;

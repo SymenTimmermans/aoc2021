@@ -5,7 +5,7 @@ use super::read_strs;
 fn read_fish(path: &str) -> HashMap<u8, usize> {
     let lines = read_strs(path);
     // split first line on comma
-    
+
     let mut fishes = HashMap::new();
     let timers = lines[0].split(',');
     for timer in timers {
@@ -54,10 +54,10 @@ fn progress_fishes(fishes: &mut HashMap<u8, usize>, time: u32) {
         new_school.insert(8, birthing_fish);
         // add the resetted fish
         let reset_fish = new_school.entry(6).or_insert(0);
-        *reset_fish += birthing_fish;                
+        *reset_fish += birthing_fish;
 
         *fishes = new_school;
-        
+
         print_fish(fishes, format!("After {} days", t).as_str());
     }
 }

@@ -10,7 +10,7 @@ struct Board {
 
 impl Board {
     fn read(input: &[String]) -> Self {
-        let mut tiles= Vec::new();
+        let mut tiles = Vec::new();
         for line in input {
             let mut row = Vec::new();
             // split the line on whitespace
@@ -41,7 +41,7 @@ impl Board {
                 return true;
             }
         }
-        
+
         false
     }
 
@@ -71,13 +71,11 @@ fn read_bingo(path: &str) -> (Vec<i32>, Vec<Board>) {
     let mut boards = Vec::<Board>::new();
     let mut line = 2;
     while line < lines.len() {
-
         let board = Board::read(&lines[line..line + 5]);
 
         boards.push(board);
         line += 6;
     }
-
 
     (draws, boards)
 }
@@ -87,7 +85,7 @@ pub fn day4() {
 
     for i in 0..draws.len() {
         // slice of draws till now
-        let draws_slice = draws[..i+1].to_vec();
+        let draws_slice = draws[..i + 1].to_vec();
         // go through boards
         for board in boards.iter() {
             // check if the board is valid
@@ -111,8 +109,7 @@ pub fn day4b() {
 
     for i in 0..draws.len() {
         // slice of draws till now
-        let draws_slice = draws[..i+1].to_vec();
-
+        let draws_slice = draws[..i + 1].to_vec();
 
         // go through boards
         for board in boards.iter_mut() {

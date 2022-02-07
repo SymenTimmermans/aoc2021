@@ -58,8 +58,6 @@ impl Line {
     }
 }
 
-
-
 fn read_lines(filename: &str) -> Vec<Line> {
     let mut lines = Vec::new();
     let file = File::open(filename).unwrap();
@@ -88,7 +86,6 @@ pub fn day5() {
             // mark this point on the vent_map, increase if already present
             let count = vent_map.entry(point).or_insert(0);
             *count += 1;
-
         }
     }
 
