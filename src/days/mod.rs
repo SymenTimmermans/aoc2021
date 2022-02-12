@@ -12,6 +12,7 @@ pub mod day4;
 pub mod day5;
 pub mod day6;
 pub mod day7;
+pub mod day8;
 
 pub use day1::*;
 pub use day2::*;
@@ -20,6 +21,7 @@ pub use day4::*;
 pub use day5::*;
 pub use day6::*;
 pub use day7::*;
+pub use day8::*;
 
 fn read_ints(file_path: &str) -> Vec<i32> {
     let file = File::open(file_path).expect("file not found");

@@ -15,15 +15,18 @@ fn align_cost_b<T>(positions: &[T], align: T) -> T
 where
     T: Integer + Signed + Sum + Copy,
 {
-    positions.iter().map(|p| { 
-        let n = (align - *p).abs();
-        // triangular number sequence
-        // 1/2 n * (n + 1)
-        // or (n * (n + 1)) / 2
-        // or (n * (n + 1)) / (1 + 1)
-        // uses T::one() to stay generic
-        (n * (n + T::one())) / (T::one() + T::one())
-    } ).sum()
+    positions
+        .iter()
+        .map(|p| {
+            let n = (align - *p).abs();
+            // triangular number sequence
+            // 1/2 n * (n + 1)
+            // or (n * (n + 1)) / 2
+            // or (n * (n + 1)) / (1 + 1)
+            // uses T::one() to stay generic
+            (n * (n + T::one())) / (T::one() + T::one())
+        })
+        .sum()
 }
 
 pub fn day7() {
