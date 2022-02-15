@@ -3,5 +3,5 @@ use days::*;
 mod days;
 
 fn main() {
-    day11();
+    day11b();
 }
