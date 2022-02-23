@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use super::read_strs;
+use aoc2021::read_strs;
 
 fn read_map(file_path: &str) -> Vec<Vec<u8>> {
     let lines = read_strs(file_path);
@@ -83,7 +83,7 @@ fn get_basin_size(pos: &(usize, usize), grid: &[Vec<u8>]) -> u32 {
     visited.len() as u32
 }
 
-pub fn day9() {
+fn day9() {
     let grid = read_map("input/day9.txt");
     let low_point_positions = find_low_points(&grid);
     let low_points = get_values(&low_point_positions, &grid);
@@ -94,7 +94,7 @@ pub fn day9() {
     println!("Day 9, part 1: {}", risk_level_sum);
 }
 
-pub fn day9b() {
+fn day9b() {
     let grid = read_map("input/day9.txt");
     let low_point_positions = find_low_points(&grid);
     // each low point position is a basin. for each basin, find the size.
@@ -113,4 +113,9 @@ pub fn day9b() {
     // print the three largest basins
     println!("Day 9, part 2: {:?}", largest_basins);
     println!("          mul: {}", largest_basins.iter().product::<u32>());
+}
+
+pub fn main() {
+    day9();
+    day9b();
 }

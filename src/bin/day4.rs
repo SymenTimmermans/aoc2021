@@ -1,4 +1,4 @@
-use super::read_strs;
+use aoc2021::read_strs;
 
 const BOARD_SIZE: usize = 5;
 
@@ -80,7 +80,7 @@ fn read_bingo(path: &str) -> (Vec<i32>, Vec<Board>) {
     (draws, boards)
 }
 
-pub fn day4() {
+fn day4() {
     let (draws, boards) = read_bingo("input/day4.txt");
 
     for i in 0..draws.len() {
@@ -102,7 +102,7 @@ pub fn day4() {
     }
 }
 
-pub fn day4b() {
+fn day4b() {
     let (draws, mut boards) = read_bingo("input/day4.txt");
 
     let mut last_score = -1;
@@ -128,4 +128,9 @@ pub fn day4b() {
     }
 
     println!("last score: {}", last_score);
+}
+
+pub fn main() {
+    day4();
+    day4b();
 }

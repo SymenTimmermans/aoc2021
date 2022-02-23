@@ -68,7 +68,7 @@ fn read_lines(filename: &str) -> Vec<Line> {
     lines
 }
 
-pub fn day5() {
+fn day5() {
     let lines = read_lines("input/day5.txt");
 
     let mut vent_map: HashMap<Position, i32> = HashMap::new();
@@ -100,7 +100,7 @@ pub fn day5() {
     println!("{} points are covered by more than one line", count);
 }
 
-pub fn day5b() {
+fn day5b() {
     let lines = read_lines("input/day5.txt");
 
     let mut vent_map: HashMap<Position, i32> = HashMap::new();
@@ -123,4 +123,9 @@ pub fn day5b() {
     }
 
     println!("{} points are covered by more than one line", count);
+}
+
+pub fn main() {
+    day5();
+    day5b();
 }

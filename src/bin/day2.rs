@@ -67,7 +67,7 @@ fn read_commands(file_path: &str) -> Vec<Command> {
         .collect()
 }
 
-pub fn day2() {
+fn day2() {
     let commands = read_commands("input/day2.txt");
     let mut pos = Position::new();
     for command in commands {
@@ -76,11 +76,16 @@ pub fn day2() {
     println!("{:?}, distance: {}", pos, pos.distance());
 }
 
-pub fn day2b() {
+fn day2b() {
     let commands = read_commands("input/day2.txt");
     let mut pos = Position::new();
     for command in commands {
         pos.move_command2(&command);
     }
     println!("{:?}, distance: {}", pos, pos.distance());
+}
+
+fn main() {
+    day2();
+    day2b();
 }

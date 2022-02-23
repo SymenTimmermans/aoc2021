@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::read_strs;
+use aoc2021::read_strs;
 
 fn read_fish(path: &str) -> HashMap<u8, usize> {
     let lines = read_strs(path);
@@ -62,9 +62,13 @@ fn progress_fishes(fishes: &mut HashMap<u8, usize>, time: u32) {
     }
 }
 
-pub fn day6() {
+fn day6() {
     let mut fishes = read_fish("input/day6.txt");
     progress_fishes(&mut fishes, 256);
     // show number of fish
     print_fish(&fishes, "Final population")
+}
+
+pub fn main() {
+    day6();
 }

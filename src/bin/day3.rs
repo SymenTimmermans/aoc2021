@@ -1,4 +1,4 @@
-use super::read_strs;
+use aoc2021::read_strs;
 
 fn gamma_rate(numbers: &[String]) -> (i32, i32) {
     let mut result = (String::new(), String::new());
@@ -23,7 +23,7 @@ fn gamma_rate(numbers: &[String]) -> (i32, i32) {
     )
 }
 
-pub fn day3() {
+fn day3() {
     let numbers = read_strs("input/day3.txt");
     let (gamma_rate, epsilon) = gamma_rate(&numbers);
     println!("Gamma {}", gamma_rate);
@@ -71,7 +71,7 @@ fn co2_rating(numbers: &[String]) -> i32 {
     rating_finder(numbers, false)
 }
 
-pub fn day3b() {
+fn day3b() {
     let numbers = read_strs("input/day3.txt");
     let ox_rating = ox_rating(&numbers);
     let co2_rating = co2_rating(&numbers);
@@ -79,4 +79,9 @@ pub fn day3b() {
     println!("Ox  rating {}", ox_rating);
     println!("CO2 rating {}", co2_rating);
     println!("LS  rating {}", ox_rating * co2_rating);
+}
+
+pub fn main() {
+    day3();
+    day3b();
 }

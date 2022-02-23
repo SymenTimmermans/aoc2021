@@ -2,7 +2,7 @@ use std::iter::Sum;
 
 use num::{Integer, Signed};
 
-use super::read_single_line_csv;
+use aoc2021::read_single_line_csv;
 
 fn align_cost<T>(positions: &[T], align: T) -> T
 where
@@ -29,7 +29,7 @@ where
         .sum()
 }
 
-pub fn day7() {
+fn day7() {
     let positions: Vec<i32> = read_single_line_csv("input/day7.txt");
 
     // get lowest value in vec
@@ -51,7 +51,7 @@ pub fn day7() {
     println!("Best position: {}, costs {} fuel", pos, fuel);
 }
 
-pub fn day7b() {
+fn day7b() {
     let positions: Vec<i32> = read_single_line_csv("input/day7.txt");
 
     // get lowest value in vec
@@ -71,4 +71,9 @@ pub fn day7b() {
     }
 
     println!("Best position: {}, costs {} fuel", pos, fuel);
+}
+
+pub fn main() {
+    day7();
+    day7b();
 }

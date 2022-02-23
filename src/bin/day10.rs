@@ -1,4 +1,4 @@
-use super::read_strs;
+use aoc2021::read_strs;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 enum LineState {
@@ -64,7 +64,7 @@ fn is_corrupt(state: LineState) -> bool {
     matches!(state, LineState::Corrupt(_))
 }
 
-pub fn day10() {
+fn day10() {
     let lines = read_strs("input/day10.txt");
 
     // print the number of total lines
@@ -79,7 +79,7 @@ pub fn day10() {
     println!("syntax error score: {:?}", syntax_error_score);
 }
 
-pub fn day10b() {
+fn day10b() {
     let lines = read_strs("input/day10.txt");
 
     // print the number of total lines
@@ -105,6 +105,13 @@ pub fn day10b() {
     // print middle score
     println!("middle score: {}", middle_score);
         
+}
+
+pub fn main() {
+    println!("day10");
+    day10();
+    println!("day10b");
+    day10b();
 }
 
 #[cfg(test)]

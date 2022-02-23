@@ -1,4 +1,5 @@
 use std::{str::FromStr, collections::HashMap};
+use aoc2021::read_strs;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 enum Node {
@@ -83,6 +84,12 @@ impl Map {
 
 pub fn day12() {
 
+}
+
+pub fn main() {
+    let input = read_strs("inputs/day12.txt");
+    let map = Map::from_lines(&input);
+    println!("{:?}", map.conn);
 }
 
 #[cfg(test)]

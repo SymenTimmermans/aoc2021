@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use super::read_strs;
+use aoc2021::read_strs;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Octopus {
@@ -153,7 +153,7 @@ fn step(octopi: &mut [Vec<Octopus>]) -> u32 {
     flashes
 }
 
-pub fn day11() {
+fn day11() {
     let mut octopi = read_octopi("input/day11.txt");
     let mut total_flashes = 0;
     println!("Before any steps:");
@@ -172,7 +172,7 @@ pub fn day11() {
     }
 }
 
-pub fn day11b() {
+fn day11b() {
     let mut octopi = read_octopi("input/day11.txt");
 
     // get the total number of octopi
@@ -192,4 +192,9 @@ pub fn day11b() {
             break;
         }
     }
+}
+
+pub fn main() {
+    day11();
+    day11b();
 }

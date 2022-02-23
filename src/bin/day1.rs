@@ -1,6 +1,7 @@
-use crate::days::read_ints;
 
-pub fn day1() {
+use aoc2021::read_ints;
+
+fn day1() {
     let depths = read_ints("input/day1.txt");
     let mut prev = -1;
     let mut inc_count = 0;
@@ -18,7 +19,7 @@ pub fn day1() {
     println!("inc_count: {}", inc_count);
 }
 
-pub fn day1b() {
+fn day1b() {
     let depths = read_ints("input/day1.txt");
     let mut last_win = -1;
     let mut inc_count = 0;
@@ -37,4 +38,9 @@ pub fn day1b() {
         last_win = *win;
     }
     println!("inc_count: {}", inc_count);
+}
+
+pub fn main() {
+    day1();
+    day1b();
 }

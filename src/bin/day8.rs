@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::read_strs;
+use aoc2021::read_strs;
 
 /// Count the number of times a digit 1, 4, 7 or 8 appears in the output.
 /// This can be simplified to:
@@ -9,7 +9,7 @@ use super::read_strs;
 /// 4 letters -> 4
 /// 7 letters -> 8
 /// So actually, we should count the number of times those length strings are in the output.
-pub fn day8() {
+fn day8() {
     let mut lengths = vec![0; 8];
     // read in the input file as a vector of strings
     let input = read_strs("input/day8.txt");
@@ -29,7 +29,7 @@ pub fn day8() {
     );
 }
 
-pub fn day8b() {
+fn day8b() {
     let input = read_strs("input/day8.txt");
     let mut sum = 0;
 
@@ -112,4 +112,9 @@ fn determine_value(patterns: &str, output: &str) -> u32 {
     }
 
     number.iter().collect::<String>().parse::<u32>().unwrap()
+}
+
+pub fn main() {
+    day8();
+    day8b();
 }
