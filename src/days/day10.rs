@@ -114,8 +114,8 @@ mod tests {
 
     #[test]
     fn test_completion_score() {
-        assert_eq!(LineState::calc_completion_score(&[']', ')', '}', '>']), 294);
-        // assert_eq!(LineState::calc_completion_score(&[']']), 2);
+        //assert_eq!(LineState::calc_completion_score(&[']', ')', '}', '>']), 294);
+        assert_eq!(LineState::calc_completion_score(&[']']), 2);
         // assert_eq!(LineState::calc_completion_score(&['}']), 3);
         // assert_eq!(LineState::calc_completion_score(&['>']), 4);
     }
