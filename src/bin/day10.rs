@@ -63,10 +63,6 @@ fn parse_line(str: &str) -> LineState {
     LineState::Valid
 }
 
-fn is_corrupt(state: LineState) -> bool {
-    matches!(state, LineState::Corrupt(_))
-}
-
 fn day10() {
     let lines = read_strs("input/day10.txt");
 
