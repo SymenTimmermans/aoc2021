@@ -1,12 +1,16 @@
-use std::{str::FromStr, collections::{HashMap, HashSet}, fmt};
 use aoc2021::read_strs;
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    str::FromStr,
+};
 
 #[derive(PartialEq, Eq, Clone, Hash)]
 enum Node {
     Start,
     End,
     SmallCave(String),
-    BigCave(String)
+    BigCave(String),
 }
 
 impl FromStr for Node {
@@ -39,24 +43,22 @@ impl fmt::Debug for Node {
             Node::Start => write!(f, "start"),
             Node::End => write!(f, "end"),
             Node::SmallCave(c) => write!(f, "{}", c),
-            Node::BigCave(c) => write!(f, "{}", c)
+            Node::BigCave(c) => write!(f, "{}", c),
         }
     }
 }
 
 struct Map {
-    conn: HashMap<Node, Vec<Node>>
+    conn: HashMap<Node, Vec<Node>>,
 }
-
-
 
 impl Map {
     fn from_lines(lines: &[String]) -> Map {
         // create empty map
         let mut map = Map {
-            conn: HashMap::new()
+            conn: HashMap::new(),
         };
-        
+
         // for each line, run parse_line
         for line in lines {
             map.parse_line(line.clone());
@@ -146,7 +148,12 @@ impl Map {
         paths
     }
 
-    fn get_paths_p2_recursive(&self, node: &Node, path: &mut Vec<Node>, paths: &mut Vec<Vec<Node>>) {
+    fn get_paths_p2_recursive(
+        &self,
+        node: &Node,
+        path: &mut Vec<Node>,
+        paths: &mut Vec<Vec<Node>>,
+    ) {
         // if we've reached the end node, add the path to the list of paths
         if node == &Node::End {
             paths.push(path.clone());
@@ -164,12 +171,11 @@ impl Map {
         for connection in connections {
             // if the connection is a small cave
             if let Node::SmallCave(_) = connection {
-                
-                // the trick now is that we're able to visit one small cave 
+                // the trick now is that we're able to visit one small cave
                 // twice, so we need to know if we already have a path that
                 // includes a "double visit" of a small cave.
                 if contains_double_visit(path) {
-                    // if so, we can't revisit this small cave, so        
+                    // if so, we can't revisit this small cave, so
                     // if the path already contains this connection, skip it.
                     if path.contains(connection) {
                         continue;
@@ -178,7 +184,6 @@ impl Map {
                     // our path does not yet contain a double visit, so we can
                     // visit this small cave again.
                 }
-
             }
 
             path.push(connection.clone());
@@ -200,7 +205,6 @@ fn contains_double_visit(path: &[Node]) -> bool {
     small_caves.len() != small_caves.iter().collect::<HashSet<_>>().len()
 }
 
-
 pub fn main() {
     let input = read_strs("input/day12.txt");
     let map = Map::from_lines(&input);
@@ -219,10 +223,7 @@ mod tests {
 
     #[test]
     fn test_read_map() {
-        let map = Map::from_lines(vec!(
-            "start-A".to_string(),
-            "A-end".to_string(),
-        ).as_slice());
+        let map = Map::from_lines(vec!["start-A".to_string(), "A-end".to_string()].as_slice());
 
         assert_eq!(map.conn.len(), 3);
 
@@ -233,13 +234,16 @@ mod tests {
 
     #[test]
     fn test_paths() {
-        let map = Map::from_lines(vec!(
-            "start-A".to_string(),
-            "A-b".to_string(),
-            "A-c".to_string(),
-            "b-C".to_string(),
-            "c-end".to_string(),
-        ).as_slice());
+        let map = Map::from_lines(
+            vec![
+                "start-A".to_string(),
+                "A-b".to_string(),
+                "A-c".to_string(),
+                "b-C".to_string(),
+                "c-end".to_string(),
+            ]
+            .as_slice(),
+        );
 
         let paths = map.get_paths();
         assert_eq!(paths.len(), 2);

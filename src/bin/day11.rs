@@ -37,8 +37,6 @@ impl Octopus {
     }
 }
 
-
-
 fn read_octopi(file_path: &str) -> Vec<Vec<Octopus>> {
     let lines = read_strs(file_path);
     let mut octopi = Vec::new();
@@ -70,7 +68,7 @@ fn has_octopi_that_should_flash(octopi: &[Vec<Octopus>]) -> bool {
     for row in octopi {
         for octopus in row {
             if octopus.should_flash() {
-                return true 
+                return true;
             }
         }
     }
@@ -106,7 +104,7 @@ fn step(octopi: &mut [Vec<Octopus>]) -> u32 {
                 flashes += octopi[row][col].flash_if_should();
             }
         }
-            
+
         // increase neighbours of flashing octopi energy by one
         for row in 0..octopi.len() {
             for col in 0..octopi[0].len() {
@@ -142,7 +140,7 @@ fn step(octopi: &mut [Vec<Octopus>]) -> u32 {
             }
         }
     }
-   
+
     // set all flashing octopi to zero
     for row in 0..octopi.len() {
         for col in 0..octopi[0].len() {
@@ -160,8 +158,7 @@ fn day11() {
     print_octopi(&octopi);
 
     for i in 1..101 {
-
-        let flashes= step(&mut octopi);
+        let flashes = step(&mut octopi);
         total_flashes += flashes;
 
         if i % 10 == 0 {
@@ -178,11 +175,10 @@ fn day11b() {
     // get the total number of octopi
     let total_octopi: u32 = octopi.iter().map(|row| row.len()).sum::<usize>() as u32;
 
-    println!("Total nr of octopi: {}", total_octopi);    
+    println!("Total nr of octopi: {}", total_octopi);
 
     for i in 1..1001 {
-
-        let flashes= step(&mut octopi);
+        let flashes = step(&mut octopi);
         print!(".");
 
         // if the number of flashes equals the number of octopi, they all flashed :-)

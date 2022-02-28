@@ -46,9 +46,8 @@ impl Paper {
                     let x = split.next().unwrap().trim().parse::<i32>().unwrap();
                     let y = split.next().unwrap().trim().parse::<i32>().unwrap();
                     (x, y)
-                })
-            );
-
+                }),
+        );
 
         let folds = lines
             .iter()
@@ -73,7 +72,6 @@ impl Paper {
 
         // remove the number of items from the front of the vector
         self.folds.drain(0..times);
-
     }
 
     /// Execute the fold, updating the dots
@@ -146,10 +144,8 @@ impl Paper {
             }
             println!();
         }
-
     }
 }
-
 
 pub fn main() {
     // read the file
@@ -170,8 +166,6 @@ pub fn main() {
     paper.print_dots();
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,7 +181,7 @@ mod tests {
     #[test]
     fn test_fold_once() {
         let mut paper = Paper::read_file("input/day13_ex.txt");
-        
+
         // fold the paper
         paper.fold(1);
 
@@ -201,7 +195,7 @@ mod tests {
     #[test]
     fn test_fold_twice() {
         let mut paper = Paper::read_file("input/day13_ex.txt");
-        
+
         // fold the paper
         paper.fold(2);
 

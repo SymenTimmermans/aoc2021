@@ -1,4 +1,3 @@
-
 use aoc2021::read_ints;
 
 fn day1() {

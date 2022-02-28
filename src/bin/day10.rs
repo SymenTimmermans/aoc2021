@@ -23,14 +23,17 @@ impl LineState {
     }
 
     pub fn calc_completion_score(closers: &[char]) -> u64 {
-        
-        closers.iter().rev().map(|c| match c {
-            ')' => 1,
-            ']' => 2,
-            '}' => 3,
-            '>' => 4,
-            _ => 0,
-        }).fold(0, |acc, x| (acc * 5) + x)
+        closers
+            .iter()
+            .rev()
+            .map(|c| match c {
+                ')' => 1,
+                ']' => 2,
+                '}' => 3,
+                '>' => 4,
+                _ => 0,
+            })
+            .fold(0, |acc, x| (acc * 5) + x)
     }
 }
 
@@ -92,10 +95,9 @@ fn day10b() {
         .map(|s| s.get_score())
         .collect();
 
-
     // sort the completion scores
     completion_scores.sort_unstable();
-    
+
     println!("completion scores: {:?}", completion_scores);
 
     // get middle value of completion scores vector
@@ -104,7 +106,6 @@ fn day10b() {
 
     // print middle score
     println!("middle score: {}", middle_score);
-        
 }
 
 pub fn main() {
@@ -126,5 +127,4 @@ mod tests {
         // assert_eq!(LineState::calc_completion_score(&['}']), 3);
         // assert_eq!(LineState::calc_completion_score(&['>']), 4);
     }
-
 }
