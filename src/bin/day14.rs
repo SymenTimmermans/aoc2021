@@ -83,7 +83,7 @@ impl Instructions {
         }
 
         self.apply_2(&mut pairs, nr);
-        
+
         // score the pairs hashmap,
         Self::score_hashmap(&pairs)
     }
@@ -106,8 +106,8 @@ impl Instructions {
 
             // add all counts in newpairs to the pairs in pairs
             pairs.extend(newpairs.into_iter());
-            
-            // clear newpairs 
+
+            // clear newpairs
             newpairs = HashMap::<(char, char), usize>::new();
         }
     }
@@ -150,12 +150,14 @@ impl Instructions {
         let lowest = char_counts
             .iter()
             .filter(|(_, c)| **c > 0)
-            .min_by_key(|(_, c)| *c).unwrap();
+            .min_by_key(|(_, c)| *c)
+            .unwrap();
         // find the char with the highest count
         let highest = char_counts
             .iter()
             .filter(|(_, c)| **c > 0)
-            .max_by_key(|(_, c)| *c).unwrap();
+            .max_by_key(|(_, c)| *c)
+            .unwrap();
 
         // subtract the lowest count from the highest count
         *highest.1 as u64 - *lowest.1 as u64
@@ -278,7 +280,6 @@ mod tests {
         );
     }
 
-
     #[test]
     fn test_apply_2() {
         let instr = Instructions::from_file("input/day14_ex.txt");
@@ -309,7 +310,6 @@ mod tests {
         assert_eq!(hm[&('C', 'H')], 1);
         assert_eq!(hm[&('H', 'B')], 1);
     }
-
 
     #[test]
     fn test_steps2() {
