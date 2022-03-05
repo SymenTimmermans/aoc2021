@@ -1,24 +1,24 @@
 use aoc2021::read_strs;
 
-/// This task has some quirks that require some special attention. 
+/// This task has some quirks that require some special attention.
 /// The input is a string of bits. It could represent a single literal value,
 /// or a nested structure of subpackets.
-/// It gets interesting when you arrive at the subpacket part. 
+/// It gets interesting when you arrive at the subpacket part.
 /// The data that contains the subpacket is simply (again) a string of bits.
-/// But there are two ways this can be interpreted: 
+/// But there are two ways this can be interpreted:
 /// - it has n subpackets, and stop reading after the n-th subpacket
 /// - it has subpackets over the length of n bits, so stop reading after the n-th bit.
-/// Because each packet has to be parsed to determine it's length and type, 
+/// Because each packet has to be parsed to determine it's length and type,
 /// We can't split the string somewhere.
 /// This feels very much like we need to use a type of recursion that keeps track
 /// of a cursor of some kind. This would allow us to continue after gathering subpackets,
 /// from the point where the new cursor resides.
-/// 
+///
 /// Therefore there are three ways to parse the input:
 /// - expect a single packet (stop after we found it)
 /// - expect n subpackets (stop after we found n)
 /// - expect subpackets in n bits (stop after we reached n bits)
-/// 
+///
 /// Lets create an enum for that!
 #[derive(Debug)]
 enum ParseMode {
@@ -26,21 +26,36 @@ enum ParseMode {
     Subpackets(usize),
     SubpacketsInBits(usize),
 }
-/// 
+///
 /// Because we chose Rust, we have to live with the fact that ownership problems
 /// could occur when we pass slices around to recursive calls. Of course we don't need
 /// mutable borrows, so we might just get away with it.
-/// 
+///
 /// I think it's wise to opt for never storing the raw data in the packet, only
 /// the parsed representations and the subpackets.
 ///
 /// For part A, we can determine two packet types, one holds a literal value, and one
 /// is an operator that holds a list of subpackets
 /// Lets go ahead and create an enum for the packet types.
+///
+/// For part B, the operator packet is a bit more complicated.
+/// It also contains an operator type.
+///
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord)]
+enum OperatorType {
+    Sum,
+    Product,
+    Minimum,
+    Maximum,
+    GreaterThan,
+    LessThan,
+    EqualTo,
+}
+
 #[derive(Debug, Clone)]
 enum PacketType {
     LiteralValue(u64),
-    Operator(Vec<Packet>),
+    Operator((OperatorType, Vec<Packet>)),
 }
 
 /// The packet
@@ -69,11 +84,15 @@ impl Packet {
     /// In the ParseMode::Single case, we expect a single packet.
     /// In the ParseMode::Subpackets case, we expect n subpackets, so this function
     /// should really return a vector of packets.
-    fn parse(bits: &str, parse_mode: ParseMode, cursor: &mut usize) -> Vec<Packet>{
-
+    fn parse(bits: &str, parse_mode: ParseMode, cursor: &mut usize) -> Vec<Packet> {
         let start_cursor = *cursor;
 
-        println!("[{} / {}] Start Parsing {:?}", cursor, bits.len(), parse_mode);
+        println!(
+            "[{} / {}] Start Parsing {:?}",
+            cursor,
+            bits.len(),
+            parse_mode
+        );
 
         // assume we can just start reading a packet, because there is at least one packet.
         let mut packets = Vec::new();
@@ -96,7 +115,14 @@ impl Packet {
                     done = *cursor >= (n + start_cursor);
                 }
             }
-            println!("[{} / {}] {:?} {} packets, done: {}", cursor, bits.len(), parse_mode, packets.len(), done);
+            println!(
+                "[{} / {}] {:?} {} packets, done: {}",
+                cursor,
+                bits.len(),
+                parse_mode,
+                packets.len(),
+                done
+            );
         }
 
         packets
@@ -104,43 +130,68 @@ impl Packet {
 
     /// Reads a single packet from the string, and advances the cursor.
     fn read_packet(bits: &str, cursor: &mut usize) -> Packet {
-
         println!("[{} / {}] Start Reading Packet", cursor, bits.len());
 
         // First we need to read the version and type_id.
-        let version = u8::from_str_radix(&bits[*cursor..*cursor+3], 2).unwrap();
+        let version = u8::from_str_radix(&bits[*cursor..*cursor + 3], 2).unwrap();
         *cursor += 3;
-        let type_id = u8::from_str_radix(&bits[*cursor..*cursor+3], 2).unwrap();
+        let type_id = u8::from_str_radix(&bits[*cursor..*cursor + 3], 2).unwrap();
         *cursor += 3;
 
-        println!("[{} / {}] version: {}, type_id: {}", cursor, bits.len(), version, type_id);
-        
+        println!(
+            "[{} / {}] version: {}, type_id: {}",
+            cursor,
+            bits.len(),
+            version,
+            type_id
+        );
+
         if type_id == 4 {
             // if the type_id is 4, we have a literal value
             let value = Packet::read_literal_value(bits, cursor);
             println!("[{} / {}] literal value: {}", cursor, bits.len(), value);
-            Packet { version,  r#type: PacketType::LiteralValue(value) }
+            Packet {
+                version,
+                r#type: PacketType::LiteralValue(value),
+            }
         } else {
+            let operator_type = match type_id {
+                0 => OperatorType::Sum,
+                1 => OperatorType::Product,
+                2 => OperatorType::Minimum,
+                3 => OperatorType::Maximum,
+                5 => OperatorType::GreaterThan,
+                6 => OperatorType::LessThan,
+                7 => OperatorType::EqualTo,
+                _ => panic!("Unknown operator type: {}", type_id),
+            };
+
             // if the type_id is different from 4, we have an operator
             // take the byte at the cursor to determine length type
-            let length_type = bits[*cursor..*cursor+1].parse::<u8>().unwrap();
+            let length_type = bits[*cursor..*cursor + 1].parse::<u8>().unwrap();
             println!("[{} / {}] length_type: {}", cursor, bits.len(), length_type);
             *cursor += 1;
             let subpackets = match length_type {
                 0 => {
-                    // If the length type ID is 0, then the next 15 bits are a number 
-                    // that represents the total length in bits of the sub-packets 
+                    // If the length type ID is 0, then the next 15 bits are a number
+                    // that represents the total length in bits of the sub-packets
                     // contained by this packet.
-                    let length = usize::from_str_radix(&bits[*cursor..*cursor+15], 2).unwrap();
-                    println!("[{} / {}] subpackets in {} bits", cursor, bits.len(), length);
+                    let length = usize::from_str_radix(&bits[*cursor..*cursor + 15], 2).unwrap();
+                    println!(
+                        "[{} / {}] subpackets in {} bits",
+                        cursor,
+                        bits.len(),
+                        length
+                    );
                     *cursor += 15;
                     Packet::parse(bits, ParseMode::SubpacketsInBits(length), cursor)
                 }
                 1 => {
-                    // If the length type ID is 1, then the next 11 bits are a number 
-                    // that represents the number of sub-packets immediately contained 
+                    // If the length type ID is 1, then the next 11 bits are a number
+                    // that represents the number of sub-packets immediately contained
                     // by this packet.
-                    let nr_packets = usize::from_str_radix(&bits[*cursor..*cursor+11], 2).unwrap();
+                    let nr_packets =
+                        usize::from_str_radix(&bits[*cursor..*cursor + 11], 2).unwrap();
                     println!("[{} / {}] {} subpackets", cursor, bits.len(), nr_packets);
                     *cursor += 11;
                     Packet::parse(bits, ParseMode::Subpackets(nr_packets), cursor)
@@ -149,7 +200,10 @@ impl Packet {
                     panic!("Unknown length type");
                 }
             };
-            Packet { version, r#type: PacketType::Operator(subpackets) }
+            Packet {
+                version,
+                r#type: PacketType::Operator((operator_type, subpackets)),
+            }
         }
     }
 
@@ -162,7 +216,7 @@ impl Packet {
             literal_value.push_str(&bits[(*cursor + 1)..(*cursor + 5)]);
 
             // if the bit at the cursor is a zero, break
-            if bits[*cursor..*cursor+1].starts_with('0') {
+            if bits[*cursor..*cursor + 1].starts_with('0') {
                 // move cursor 5 places over
                 *cursor += 5;
                 break;
@@ -179,15 +233,56 @@ impl Packet {
     /// returns the nested total of versions
     fn version_sum(&self) -> u32 {
         let mut sum = self.version as u32;
-        if let PacketType::Operator(subpackets) = &self.r#type {
+        if let PacketType::Operator((_, subpackets)) = &self.r#type {
             for packet in subpackets {
                 sum += packet.version_sum();
             }
         }
         sum
     }
-}
 
+    // returns the value of the expression in the packet
+    fn value(&self) -> u64 {
+        match &self.r#type {
+            PacketType::LiteralValue(value) => *value,
+            PacketType::Operator((operator_type, subpackets)) => match operator_type {
+                OperatorType::Sum => subpackets
+                    .iter()
+                    .fold(0, |acc, packet| acc + packet.value()),
+                OperatorType::Product => subpackets
+                    .iter()
+                    .fold(1, |acc, packet| acc * packet.value()),
+                OperatorType::Minimum => subpackets.iter().fold(std::u64::MAX, |acc, packet| {
+                    std::cmp::min(acc, packet.value())
+                }),
+                OperatorType::Maximum => subpackets.iter().fold(std::u64::MIN, |acc, packet| {
+                    std::cmp::max(acc, packet.value())
+                }),
+                OperatorType::GreaterThan => {
+                    if subpackets[0].value() > subpackets[1].value() {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                OperatorType::LessThan => {
+                    if subpackets[0].value() < subpackets[1].value() {
+                        1
+                    } else {
+                        0
+                    }
+                }
+                OperatorType::EqualTo => {
+                    if subpackets[0].value() == subpackets[1].value() {
+                        1
+                    } else {
+                        0
+                    }
+                }
+            },
+        }
+    }
+}
 
 fn hex_to_binstr(hex: &str) -> String {
     let mut binstr = String::new();
@@ -216,15 +311,12 @@ fn hex_to_binstr(hex: &str) -> String {
     binstr
 }
 
-
-
-
 pub fn main() {
     let lines = read_strs("input/day16.txt");
     let packet = Packet::from_hex(&lines[0]);
     println!("Version sum: {}", packet.version_sum());
+    println!("Expression value: {}", packet.value());
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -264,9 +356,8 @@ mod tests {
         assert_eq!(lit_val, 20);
         // cursor should be at 49
         assert_eq!(cursor, 49);
-
     }
-    
+
     #[test]
     fn test_operator() {
         let packet = Packet::from_hex("38006F45291200");
@@ -275,7 +366,7 @@ mod tests {
         assert_eq!(packet.version, 1);
 
         // match on packet.type
-        if let PacketType::Operator(subpackets) = packet.r#type {
+        if let PacketType::Operator((_, subpackets)) = packet.r#type {
             // subpackets should have 2 items
             assert_eq!(subpackets.len(), 2);
 
@@ -303,7 +394,7 @@ mod tests {
         assert_eq!(packet.version, 7);
 
         // match on packet.type
-        if let PacketType::Operator(subpackets) = packet.r#type {
+        if let PacketType::Operator((_, subpackets)) = packet.r#type {
             // subpackets should have 2 items
             assert_eq!(subpackets.len(), 3);
 
@@ -330,7 +421,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_version_sum() {
         let packet = Packet::from_hex("D2FE28");
@@ -347,5 +437,34 @@ mod tests {
 
         let packet = Packet::from_hex("A0016C880162017C3686B18A3D4780");
         assert_eq!(packet.version_sum(), 31);
+    }
+
+    #[test]
+    fn test_expressions() {
+        let packet = Packet::from_hex("C200B40A82");
+        assert_eq!(packet.value(), 3);
+
+        let packet = Packet::from_hex("04005AC33890");
+        assert_eq!(packet.value(), 54);
+
+        let packet = Packet::from_hex("880086C3E88112");
+        assert_eq!(packet.value(), 7);
+
+        let packet = Packet::from_hex("CE00C43D881120");
+        assert_eq!(packet.value(), 9);
+
+        let packet = Packet::from_hex("D8005AC2A8F0");
+        assert_eq!(packet.value(), 1);
+
+        let packet = Packet::from_hex("F600BC2D8F");
+        assert_eq!(packet.value(), 0);
+
+        // 9C005AC2F8F0 produces 0, because 5 is not equal to 15.
+        let packet = Packet::from_hex("9C005AC2F8F0");
+        assert_eq!(packet.value(), 0);
+
+        // 9C0141080250320F1802104A08 produces 1, because 1 + 3 = 2 * 2.
+        let packet = Packet::from_hex("9C0141080250320F1802104A08");
+        assert_eq!(packet.value(), 1);
     }
 }
