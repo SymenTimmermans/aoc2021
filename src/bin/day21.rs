@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+
 struct Die {
     sides: usize,
     last: usize,
@@ -63,10 +66,6 @@ impl Player {
     fn has_won(&self) -> bool {
         self.score >= 1000
     }
-
-    fn has_won_2(&self) -> bool {
-        self.score >= 21
-    }
 }
 
 /// Each time you roll the dice three times, you split into 27 universes, but
@@ -83,47 +82,53 @@ const QUANTUM_THROWS: [(usize, u128); 7] = [
     (9, 1),
 ];
 
-fn recurse_game(p1: &Player, p2: &Player, nr_u: u128) -> (u128, u128) {
-    // println!(
-    //     "[ {} ] --- P1 score: {}, P2 score: {}",
-    //     nr_u, p1.score, p2.score
-    // );
+//          p1 pos, p2 pos, p1 score, p2 score
+type State = (usize, usize, usize, usize);
+
+//                   p1wu, p2wu
+type UniverseWins = (u128, u128);
+
+thread_local! {
+    static CACHE: RefCell<HashMap<(State, u128), UniverseWins>> = RefCell::new(HashMap::new());
+}
+
+fn recurse_game(init_state: State, nr_u: u128) -> UniverseWins {
+    // check if we have already calculated this state
+    if let Some(res) = CACHE.with(|cache| cache.borrow().get(&(init_state, nr_u)).cloned()) {
+        return res;
+    }
 
     // Do a turn for p1.
     let win_universes = QUANTUM_THROWS
         .iter()
         .map(|(value, universes)| {
-            // clone player 1
-            let mut p1_clone = *p1;
-            // move the player based on the value thrown
-            p1_clone.do_move(*value);
+            let mut state = (init_state.0, init_state.1, init_state.2, init_state.3);
 
-            // println!("[ {} ] --- P1 score now {}", nr_u, p1_clone.score);
+            // move player 1
+            state.0 = (state.0 + value - 1) % BOARD_SIZE + 1;
+            // add the position to the current score
+            state.2 += state.0;
 
             // if p1 has won, return the universes.
-            if p1_clone.has_won_2() {
-                // println!(
-                //     "[ {} ] --- P1 wins in {} universes, * nr_u = {}",
-                //     nr_u,
-                //     universes,
-                //     nr_u * universes
-                // );
+            if state.2 >= 21 {
                 (*universes * nr_u, 0)
             } else {
-                // give player 2 the turn
-                let (p2wu, p1wu) = recurse_game(p2, &p1_clone, *universes);
-                // println!(
-                //     "[ {} ] --- came back from recursive cal, p2: {}, p1: {}",
-                //     nr_u, p1wu, p2wu
-                // );
+                // give player 2 the turn, so flip the player data around.
+                let state = (state.1, state.0, state.3, state.2);
+
+                let (p2wu, p1wu) = recurse_game(state, *universes);
                 (p1wu * nr_u, p2wu * nr_u)
             }
         })
-        .reduce(|(p1wu, p2wu), (p1wu2, p2wu2)| (p1wu + p1wu2, p2wu + p2wu2));
+        .reduce(|(p1wu, p2wu), (p1wu2, p2wu2)| (p1wu + p1wu2, p2wu + p2wu2))
+        .expect("No win chancees!");
 
-    println!("[ {} ] Win universes: {:?}", nr_u, win_universes);
+    // put this in the cache
+    CACHE.with(|cache| {
+        cache.borrow_mut().insert((init_state, nr_u), win_universes);
+    });
 
-    (win_universes.unwrap().0, win_universes.unwrap().1)
+    (win_universes.0, win_universes.1)
 }
 
 fn main() {
@@ -172,10 +177,9 @@ fn main() {
     // Maybe we should just try recursion and see how far we get.
     //
     // make two new players:
-    let p1 = Player::new(7);
-    let p2 = Player::new(3);
+    let state = (7, 3, 0, 0);
 
-    let (p1wu, p2wu) = recurse_game(&p1, &p2, 1);
+    let (p1wu, p2wu) = recurse_game(state, 1);
 
     // printout p1wu and p2wu
     println!("Part 2: Game outcome: {} vs {}", p1wu, p2wu);
@@ -288,15 +292,11 @@ mod tests {
     #[test]
     fn test_recurse_game() {
         // Create two players where on is on the virge of winning.
-        let mut p1 = Player::new(1);
-        p1.score = 20;
-
-        let mut p2 = Player::new(2);
-        p2.score = 19;
+        let state = (1, 2, 20, 19);
 
         // in this situation, player 1 should always win, because it's his turn, and he will
         // score more than 21
-        let (p1wu, p2wu) = recurse_game(&p1, &p2, 1);
+        let (p1wu, p2wu) = recurse_game(state, 1);
 
         // player 1 throws the die 3 times, which splits the universe into 3 * 3 * 3 = 27 universes.
         // so p1wu should be 27
@@ -308,13 +308,10 @@ mod tests {
         println!("-----------------------------------------------------");
 
         // lets try a different situation. Player 1 is not winning, but player 2 is.
-        let mut p1 = Player::new(1);
-        p1.score = 0;
-        let mut p2 = Player::new(2);
-        p2.score = 20;
+        let state = (1, 2, 0, 20);
 
         // in this situation, player 2 should always win, because player 1 can not win in one move.
-        let (p1wu, p2wu) = recurse_game(&p1, &p2, 1);
+        let (p1wu, p2wu) = recurse_game(state, 1);
 
         // player 1 throws the die 3 times, which splits the universe into 3 * 3 * 3 = 27 universes.
         // player 2 then does the same and wins, in all 27 * 27 universes.
@@ -329,12 +326,8 @@ mod tests {
         // another edge case. Player 1 is almost winning but can only win when he throws 1+1+1, which only
         // happens in 1 universe. In all other universes, player 2 will win.
 
-        let mut p1 = Player::new(7);
-        p1.score = 11;
-        let mut p2 = Player::new(2);
-        p2.score = 20;
-
-        let (p1wu, p2wu) = recurse_game(&p1, &p2, 1);
+        let state = (7, 2, 11, 20);
+        let (p1wu, p2wu) = recurse_game(state, 1);
 
         // player 1 should only win in 1 universe
         assert_eq!(p1wu, 1);
@@ -342,12 +335,11 @@ mod tests {
         assert_eq!(p2wu, 26 * 27);
     }
 
-    //  #[test]
+    #[test]
     fn test_recurse_game_example() {
-        let p1 = Player::new(4);
-        let p2 = Player::new(8);
+        let state = (4, 8, 0, 0);
 
-        let (p1wu, p2wu) = recurse_game(&p1, &p2, 1);
+        let (p1wu, p2wu) = recurse_game(state, 1);
 
         // Using the same starting positions as in the example above, player 1 wins in 444356092776315 universes,
         assert_eq!(p1wu, 444356092776315);
