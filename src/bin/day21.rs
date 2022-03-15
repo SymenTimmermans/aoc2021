@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+/// A deterministic die with N sides.
 struct Die {
     sides: usize,
     last: usize,
@@ -16,6 +17,7 @@ impl Die {
         }
     }
 
+    /// Return a total score of three rolls.
     fn roll(&mut self) -> usize {
         self.take(3).sum()
     }
@@ -26,11 +28,7 @@ impl Iterator for Die {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.last = if self.last == self.sides {
-            1
-        } else {
-            self.last + 1
-        };
+        self.last = self.last % self.sides + 1;
         self.rolls += 1;
         Some(self.last)
     }
@@ -177,12 +175,19 @@ fn main() {
     // Maybe we should just try recursion and see how far we get.
     //
     // make two new players:
+    // on position 7 and 3
+    // with score 0
     let state = (7, 3, 0, 0);
 
     let (p1wu, p2wu) = recurse_game(state, 1);
 
     // printout p1wu and p2wu
-    println!("Part 2: Game outcome: {} vs {}", p1wu, p2wu);
+    println!(
+        "Part 2: Game outcome: {} vs {}, highest: {}",
+        p1wu,
+        p2wu,
+        p1wu.max(p2wu)
+    );
 }
 
 #[cfg(test)]
