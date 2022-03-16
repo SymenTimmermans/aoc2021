@@ -23,7 +23,7 @@ impl Die {
     }
 }
 
-// implement iterator for Die
+// implement iterator for Die rolling
 impl Iterator for Die {
     type Item = usize;
 
