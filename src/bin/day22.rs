@@ -483,7 +483,6 @@ on x=10..10,y=10..10,z=10..10"#,
             apply_step2(&mut reactor, step);
         }
 
-        // there should be 590784 cubes lit
         assert_eq!(count_cubes(&reactor), 2758514936282235);
     }
 }
