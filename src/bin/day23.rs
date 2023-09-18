@@ -373,20 +373,22 @@ impl Map {
     /// Get the best solution of the map
     /// This is the solution with the lowest energy cost
     fn best_solution(&self) -> Option<Self> {
+        println!("{}", self);
+
         // if the map is already complete, return it
         if self.complete() {
-            println!("E: {:?} - Map is complete", self.energy);
+            // println!("E: {:?} - Map is complete", self.energy);
             return Some(self.clone());
         }
 
         // get the possible moves
         let moves = self.possible_moves();
 
-        println!("E: {:?} - Possible moves: {:?}:", self.energy, moves.len());
+        // println!("E: {:?} - Possible moves: {:?}:", self.energy, moves.len());
         // printout all the moves:
-        moves.iter().for_each(|m| {
-            println!("             {:?}", m);
-        });
+        // moves.iter().for_each(|m| {
+        //     println!("             {:?}", m);
+        // });
 
         // if there are no moves, return None
         if moves.is_empty() {
@@ -399,7 +401,7 @@ impl Map {
         moves
             .into_iter()
             .filter_map(|m| {
-                println!("E: {:?} - Doing move: {:?}", self.energy, m);
+                // println!("E: {:?} - Doing move: {:?}", self.energy, m);
                 let new = self.do_move(&m);
                 new.best_solution()
             })
@@ -554,7 +556,7 @@ pub fn main() {
     )
     .unwrap();
 
-    let solution = map.best_solution_imperative().unwrap();
+    let solution = map.best_solution().unwrap();
 
     println!("{} e:{}", solution, solution.energy);
 }
