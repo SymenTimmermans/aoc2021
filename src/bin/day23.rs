@@ -205,7 +205,9 @@ struct Map {
 // implement EQ for Map so we can use it in a HashSet
 impl PartialEq for Map {
     fn eq(&self, other: &Self) -> bool {
-        self.pods == other.pods && self.energy == other.energy
+        self.str_rep() == other.str_rep()
+        // self.pods == other.pods 
+        && self.energy == other.energy
     }
 }
 
@@ -556,7 +558,7 @@ pub fn main() {
     )
     .unwrap();
 
-    let solution = map.best_solution().unwrap();
+    let solution = map.best_solution_imperative().unwrap();
 
     println!("{} e:{}", solution, solution.energy);
 }
@@ -781,6 +783,25 @@ mod tests {
     }
 
     #[test]
+    fn test_map_equality() {
+        // two maps with the same pods but in a different order, should be the same
+        let pods1 = vec![
+            Amphipod::new(Position::Burrow(1, 1), Type::A),
+            Amphipod::new(Position::Burrow(2, 1), Type::B),
+        ];
+        let map1 = Map { pods: pods1, energy: 0 };
+
+        let pods2 = vec![
+            Amphipod::new(Position::Burrow(2, 1), Type::B),
+            Amphipod::new(Position::Burrow(1, 1), Type::A),
+        ];
+        let map2 = Map { pods: pods2, energy: 0 };
+
+        // map1 and map2 should be equal.
+        assert_eq!(map1, map2);
+    }
+
+    #[test]
     fn test_move_energy_single_a() {
         // start with a simple map with an amphipod in the first burrow
         let pods = vec![Amphipod::new(Position::Burrow(1, 1), Type::A)];
@@ -885,7 +906,7 @@ mod tests {
         println!("Solution:\n{}\nE: {}", solution, solution.energy);
     }
 
-    // #[test]
+    #[test]
     fn test_solving_example() {
         let map = Map::from_str(
             r#"#############
