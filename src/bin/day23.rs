@@ -1,20 +1,22 @@
-use itertools::Itertools;
+use cached::proc_macro::cached;
+use pathfinding::prelude::dijkstra;
+use std::collections::HashMap;
 
 /// We need an efficient way to represent the map map in order to use efficient ways of checking
 /// possible moves. We have 11 hallway positions, but 4 of them are unusable, so that leaves 7
 /// possible positions.
 /// We also need to represent the burrows, so we can have a map that sort of looks like this:
 ///
-
-/// .......ABCDABCD
-/// This is also the desired win map.
-const WIN_MAP: &str = ".......ABCDABCD";
-
 /// .. . . . .. ABCDABCD
 /// Compressed:
 /// .......ABCDABCD
+///
 /// We can use a string for this
 type Map = String;
+
+/// These are the desired win maps.
+const WIN_MAP: &str = ".......ABCDABCD";
+const WIN_MAP_XL: &str = ".......ABCDABCDABCDABCD";
 
 /// a pod is simply a char in the map
 type Pod = (usize, char);
@@ -22,16 +24,19 @@ type Pod = (usize, char);
 /// a route is a series of indexes not including the start index
 type Route = Vec<usize>;
 
+/// Return an iterator over the pods in the map
 fn pods_iter(map: &Map) -> impl Iterator<Item = Pod> + '_ {
     map.chars()
         .enumerate()
         .filter(|(_, c)| ['A', 'B', 'C', 'D'].contains(c))
 }
 
+/// Return true if the pod is in a burrow
 fn in_burrow(pod: &Pod) -> bool {
     pod.0 >= 7
 }
 
+/// Return true if the pod is in it's home burrow
 fn in_home_burrow(pod: &Pod) -> bool {
     if !in_burrow(pod) {
         return false;
@@ -46,10 +51,12 @@ fn in_home_burrow(pod: &Pod) -> bool {
     }
 }
 
+/// Return true if the pod is in the hallway
 fn in_hallway(pod: &Pod) -> bool {
     pod.0 < 7
 }
 
+/// Return the energy cost for the movement of a pod
 fn energy(pod: &Pod) -> u32 {
     match pod.1 {
         'A' => 1,
@@ -60,6 +67,8 @@ fn energy(pod: &Pod) -> u32 {
     }
 }
 
+/// Return the contents of the burrow. For simplicity sake, we can pass in a Char, since
+/// that's likely what we have from the context that we make this call.
 fn burrow(c: &char, map: &Map) -> Vec<char> {
     // only return the chars that are in the burrow
     match c {
@@ -71,6 +80,9 @@ fn burrow(c: &char, map: &Map) -> Vec<char> {
     }
 }
 
+/// Check if the pod may move, by looking at some easy facts like it being in a hallway
+/// or in a burrow. If it's in a burrow, it may only move if the burrow contains other
+/// characters than the pod.
 fn may_move(pod: &Pod, map: &Map) -> bool {
     if !in_burrow(pod) {
         return true;
@@ -85,31 +97,41 @@ fn may_move(pod: &Pod, map: &Map) -> bool {
     let (_, c) = pod;
     let burrow = burrow(c, map);
 
-    // println!("{pod:?} map:{map} burrow:{burrow:?}");
-
     // burrow should contain other characters than c for the pod to be allowed to move
     burrow.iter().filter(|x| *x != c && *x != &'.').count() > 0
 }
 
+/// Return a route from one position to another. This is a bit tricky, since we have to take
+/// into account that we can move from the hallway to the burrow and vice versa. The route
+/// is a vector of indexes, where the last index is the destination index.
 fn trace(from: usize, to: usize) -> Route {
     let mut r = vec![];
     if to >= 7 {
         // going to a burrow, but which one
-        let b = (to - 7) % 4 + 1;
+        let mut b = (to - 7) % 4 + 1;
+        let mut drop_delta = 6;
         // lets go to the top of the burrow
         // 01 2 3 4 56
+        //   1 2 3 4
         // first see if we need to go left or right
-        let dir: i8 = if from < b { 1 } else { -1 };
+        let dir: i8 = if from <= b { 1 } else { -1 };
+        // if we move to the left, we need to add 1 to the burrow index, because we can drop down
+        // a bit earlier, ie 6 > 5 > burrow D instead of 3 > 4 > burrow D
+        // we also adjust the drop delta for this case
+        if dir == -1 {
+            b += 1;
+            drop_delta = 5;
+        }
         let mut pos = from;
         while pos != b {
             pos = (pos as i8 + dir) as usize;
-            r.push(pos as usize);
+            r.push(pos);
         }
         // now let's go down the burrow
-        pos += 6;
+        pos += drop_delta;
         r.push(pos);
         while pos != to {
-            pos = pos + 4;
+            pos += 4;
             r.push(pos);
         }
     } else {
@@ -140,19 +162,24 @@ fn trace(from: usize, to: usize) -> Route {
     r
 }
 
+/// Return the number of steps the pod has to take, taking into account the positions we don't
+/// consider a valid end destination, like right outside the burrow.
+/// It means we have to take into account the steps it takes to move into the burrow and out of it.
+/// Plus also whether we cross a burrow entrance.
 fn route_steps(route: &Route) -> u32 {
-    // count how many of indexes 2, 3, 4, are in the route
-    let mut skipped = route
+    // take the route without the last item
+    let path = &route[..route.len() - 1];
+    // count how many of indexes 2, 3, 4, are in the path
+    let skipped = path
         .iter()
-        .filter(|i| **i >= 2 as usize && **i <= 4 as usize)
+        .filter(|i| **i >= 2_usize && **i <= 4_usize)
         .count() as u32;
-    // if we haven't skipped, we may have moved into a burrow, so add one for that
-    if skipped == 0 {
-        skipped = 1;
-    }
-    route.len() as u32 + skipped
+    // add the skipped count plus one for moving in and out of a burrow
+    route.len() as u32 + skipped + 1
 }
 
+/// Return a vector of possible routes a pod can take, without considering if those positions are
+/// occupied or not, that will be handled by a different function.
 fn routes_from(pod: &Pod, deep: bool) -> Vec<Route> {
     let mut routes = vec![];
     if in_burrow(pod) {
@@ -169,15 +196,15 @@ fn routes_from(pod: &Pod, deep: bool) -> Vec<Route> {
             }
             'B' => {
                 routes.push(trace(pod.0, 8));
-                routes.push(trace(pod.0, 11));
+                routes.push(trace(pod.0, 12));
             }
             'C' => {
                 routes.push(trace(pod.0, 9));
-                routes.push(trace(pod.0, 11));
+                routes.push(trace(pod.0, 13));
             }
             'D' => {
                 routes.push(trace(pod.0, 10));
-                routes.push(trace(pod.0, 11));
+                routes.push(trace(pod.0, 14));
             }
             _ => {}
         }
@@ -204,13 +231,15 @@ fn routes_from(pod: &Pod, deep: bool) -> Vec<Route> {
         }
     }
     // remove the routes that are empty
-    routes.iter().filter(|r| r.len() > 0).cloned().collect()
+    routes.iter().filter(|r| !r.is_empty()).cloned().collect()
 }
 
+/// Check the map to see if a route is clear of any other pods.
 pub fn route_clear(route: &Route, map: &Map) -> bool {
     route.iter().all(|i| map.chars().nth(*i).unwrap() == '.')
 }
 
+/// Convenience function to print the map in the same format as is used in the puzzle.
 pub fn print_map(map: &Map) {
     // print the top row
     println!("#############");
@@ -218,8 +247,9 @@ pub fn print_map(map: &Map) {
     for i in 0..7 {
         let c = map.chars().nth(i).unwrap();
         print!("{}", c);
-        //if i in (1, 2, 3, 4), print an extra .
-        if i >= 1 && i <= 4 {
+        // if i in (1, 2, 3, 4), print an extra .
+        // to take into account burrow entrances
+        if (1..=4).contains(&i) {
             print!(".");
         }
     }
@@ -232,16 +262,47 @@ pub fn print_map(map: &Map) {
             print!("  #")
         };
         for j in 0..4 {
-            let c = map.chars().nth(i + j).expect("oob");
+            let c = map.chars().nth(i + j).unwrap();
             print!("{}#", c);
         }
-        println!("  ");
+        if i == 7 {
+            println!("##");
+        } else {
+            println!("  ")
+        };
         i += 4;
     }
+    println!("  #########  ");
+}
+
+/// Now we need a function that returns the lowest empty burrows, so we can filter out the routes
+/// that have a destination burrow position that is not the lowest.
+#[cached(key = "String", convert = r#"{ String::from(map) }"#)]
+fn get_lowest_empty_burrows(map: &Map) -> Vec<usize> {
+    let mut lowest = [0_usize; 4];
+    let mut i = 7;
+    while i < map.len() {
+        for j in 0..4 {
+            if map.chars().nth(i + j).unwrap() == '.' {
+                lowest[j] = i + j;
+            }
+        }
+        i += 4;
+    }
+    // return a vector of lowest, filtering out the ones that are 0
+    lowest.iter().filter(|x| **x != 0).cloned().collect()
+}
+
+/// Check if the burrow is dirty, meaning that it contains other pods than the pod that is moving
+/// into it.
+fn burrow_dirty(pod: &Pod, map: &Map) -> bool {
+    let burrow = burrow(&pod.1, map);
+    burrow.iter().filter(|c| *c != &pod.1 && **c != '.').count() > 0
 }
 
 /// Now we only need a function that returns a vec of possible moves, along with the cost.
 pub fn moves(map: &Map) -> Vec<(Map, u32)> {
+    let deep = map.len() > 15;
     let mut moves = vec![];
     // determining moves is quite easy
     // for each index where a pod can be
@@ -252,12 +313,24 @@ pub fn moves(map: &Map) -> Vec<(Map, u32)> {
     pods_iter(map)
         .filter(|pod| may_move(pod, map))
         .for_each(|pod| {
-            let routes = routes_from(&pod, false);
-            // println!("pod: {pod:?} routes: {:?}", routes);
+            // if the pod is in the hallway, and the burrow is 'dirty', skip
+            if in_hallway(&pod) && burrow_dirty(&pod, &map) {
+                return;
+            }
+            let routes = routes_from(&pod, deep);
+
+            // get lowest empty burrow indexes
+            let lowest_burrows = get_lowest_empty_burrows(&map);
+            // remove any routes that have a burrow as a destination (i >= 7) which is not
+            // in the lowest burrows
+            let routes = routes
+                .iter()
+                .filter(|r| r.last().unwrap() < &7 || lowest_burrows.contains(r.last().unwrap()))
+                .cloned()
+                .collect::<Vec<Route>>();
 
             for route in routes {
                 if route_clear(&route, map) {
-                    // println!("clear route: {:?}", route);
                     let mut new_map = map.clone();
                     let (from, c) = pod;
                     let to = *route.last().unwrap();
@@ -266,13 +339,10 @@ pub fn moves(map: &Map) -> Vec<(Map, u32)> {
 
                     let pod_energy = energy(&pod);
                     let energy = route_steps(&route) * pod_energy;
-                    // println!("{map} > {new_map} route: {route:?}       {} * {} = {}",
-                    // route_steps(&route), pod_energy, energy);
                     moves.push((new_map, energy));
                 }
             }
         });
-
     moves
 }
 
@@ -298,67 +368,87 @@ pub fn parse(input: &str) -> Map {
     map
 }
 
-pub fn solve(input: &str) -> u32 {
-    let map = parse(input);
-
+/// Solve the puzzle by finding the shortest path to the win map.
+/// This is a naive approach using a queue. It can be used to solve the first part, but not really
+/// for the second part.
+pub fn solve(map: &Map, win_map: &Map) -> u32 {
     // use a breadth first search to find the shortest path
     // to the win map
     let mut queue = vec![(map.clone(), 0)];
-    let mut visited = vec![map.clone()];
+    let mut visited: HashMap<Map, u32> = HashMap::new();
     let mut min_energy = std::u32::MAX;
 
     while let Some((map, energy)) = queue.pop() {
-        if map == WIN_MAP {
+        if map == *win_map {
             min_energy = min_energy.min(energy);
             continue;
         }
         let moves = moves(&map);
-        // print queue size, visited size, new moves, min energy
-        println!(
-            "queue: {} visited: {} moves: {} min_energy: {}",
-            queue.len(),
-            visited.len(),
-            moves.len(),
-            min_energy
-        );
         for (new_map, new_energy) in moves {
-            if !visited.contains(&new_map) {
-                println!("new_map: {new_map} energy: {new_energy}");
-                visited.push(new_map.clone());
+            if !visited.contains_key(&new_map) {
+                visited.insert(new_map.clone(), new_energy);
                 queue.push((new_map, energy + new_energy));
+            } else {
+                // if the new energy is less than the old energy, we can update the energy
+                if new_energy < *visited.get(&new_map).unwrap() {
+                    visited.insert(new_map.clone(), new_energy);
+                    queue.push((new_map, energy + new_energy));
+                }
             }
         }
 
-        // sort the queue by energy, lowest first
-        queue.sort_by_key(|x| x.1);
+        // sort the queue by energy, highest first
+        queue.sort_by(|a, b| b.1.cmp(&a.1));
     }
 
     min_energy
 }
 
+/// Solve the shortest path to the win map using the Dijkstra algorithm from the `pathfinding`
+/// crate. It is a dramatic improvement over the naive approach.
+fn solve_dijkstra(map: &Map, win_map: &Map) -> u32 {
+    let result = dijkstra(map, moves, |map| map == win_map);
+    if let Some((path, energy)) = result {
+        for map in path.iter() {
+            print_map(map);
+        }
+        energy
+    } else {
+        0
+    }
+}
+
 pub fn main() {
-    let input = r#"#############
+    let _input_a = r#"#############
 #...........#
 ###B#C#A#D###
   #B#C#D#A#
   #########
 "#;
-    let input = r#"#############
-#.A.........#
-###.#B#C#D###
-  #A#B#C#D#
+    let input_b = r#"#############
+#...........#
+###B#C#A#D###
+  #D#C#B#A#
+  #D#B#A#C#
+  #B#C#D#A#
   #########
 "#;
-    let map = Map::from(".A......BCDABCD");
-    // let solution = solve(input);
-    print_map(&map);
-    // println!("Day 23a: {solution}");
+
+    let map = parse(input_b);
+    let solution = solve_dijkstra(&map, &String::from(WIN_MAP_XL));
+
+    println!("Day 23a: {solution}");
 }
 
-/// Here start the testing
+/// Here starts the testing
+/// 
+/// The tests are a bit verbose, but they are necessary to make sure the functions are working
+/// correctly, and most test cases are there to help detect and fix bugs.
+///
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
 
     #[test]
     fn test_parse() {
@@ -370,16 +460,6 @@ mod tests {
 "#;
         let map = parse(input);
         assert_eq!(map, ".......ABCDABCD");
-
-        let input = r#"#############
-#.A.........#
-###.#B#C#D###
-  #A#B#C#D#
-  #########
-"#;
-
-        let map = parse(input);
-        assert_eq!(map, ".A.....BCDABCD");
     }
 
     #[test]
@@ -402,6 +482,127 @@ mod tests {
     }
 
     #[test]
+    fn test_moves_3() {
+        let m = moves(&"..B....B.CDADCA".to_string());
+        assert!(m.contains(&("..BD...B.CDA.CA".to_string(), 3000)));
+
+        let m = moves(&"..BD...B.CDA.CA".to_string());
+        assert!(m.contains(&("...D...B.CDABCA".to_string(), 30)));
+    }
+
+    #[test]
+    fn test_moves_4() {
+        let m = moves(&"...D...B.CDABCA".to_string());
+        assert!(m.contains(&("..BD.....CDABCA".to_string(), 20)));
+
+        let m = moves(&"..BD.....CDABCA".to_string());
+        assert!(m.contains(&("...D....BCDABCA".to_string(), 20)));
+    }
+
+    #[test]
+    fn test_moves_5() {
+        let m = moves(&"...D....BCDABCA".to_string());
+        assert!(m.contains(&("...DD...BC.ABCA".to_string(), 2000)));
+
+        let m = moves(&"...DD...BC.ABCA".to_string());
+        assert!(m.contains(&("...DDA..BC.ABC.".to_string(), 3)));
+    }
+
+    #[test]
+    fn test_moves_6() {
+        let m = moves(&"...DDA..BC.ABC.".to_string());
+        assert!(m.contains(&("...D.A..BC.ABCD".to_string(), 3000)));
+
+        let m = moves(&"...D.A..BC.ABCD".to_string());
+        assert!(m.contains(&(".....A..BCDABCD".to_string(), 4000)));
+    }
+
+    #[test]
+    fn test_moves_7() {
+        let m = moves(&".....A..BCDABCD".to_string());
+        assert!(m.contains(&(".......ABCDABCD".to_string(), 8)));
+    }
+
+    #[rstest]
+    #[case(".......BCBDDCBADBACADCA", "......DBCB.DCBADBACADCA")]
+    #[case("......DBCB.DCBADBACADCA", "A.....DBCB.DCB.DBACADCA")]
+    #[case("A.....DBCB.DCB.DBACADCA", "A....BDBC..DCB.DBACADCA")]
+    #[case("A....BDBC..DCB.DBACADCA", "A...BBDBC..DC..DBACADCA")]
+    #[case("A....BDBC..DCB.DBACADCA", "A...BBDBC..DC..DBACADCA")]
+    #[case("A...BBDBC..DC..DBACADCA", "AA..BBDBC..DC..DB.CADCA")]
+    #[case("AA..BBDBC..DC..DB.CADCA", "AA.CBBDB...DC..DB.CADCA")]
+    #[case("AA.CBBDB...DC..DB.CADCA", "AA..BBDB...DC..DBCCADCA")]
+    #[case("AA..BBDB...DC..DBCCADCA", "AA.CBBDB...D...DBCCADCA")]
+    #[case("AA.CBBDB...D...DBCCADCA", "AA..BBDB...D.C.DBCCADCA")]
+    #[case("AA..BBDB...D.C.DBCCADCA", "AA.BBBDB...D.C.D.CCADCA")]
+    #[case("AA.BBBDB...D.C.D.CCADCA", "AADBBBDB...D.C.D.CCA.CA")]
+    #[case("AADBBBDB...D.C.D.CCA.CA", "AAD.BBDB...D.C.D.CCABCA")]
+    #[case("AAD.BBDB...D.C.D.CCABCA", "AAD..BDB...D.C.DBCCABCA")]
+    #[case("AAD..BDB...D.C.DBCCABCA", "AAD...DB...DBC.DBCCABCA")]
+    #[case("AAD...DB...DBC.DBCCABCA", "AAD.C.DB...DBC.DBC.ABCA")]
+    #[case("AAD.C.DB...DBC.DBC.ABCA", "AAD...DB.C.DBC.DBC.ABCA")]
+    #[case("AAD...DB.C.DBC.DBC.ABCA", "AAD..ADB.C.DBC.DBC.ABC.")]
+    #[case("AAD..ADB.C.DBC.DBC.ABC.", "AA...ADB.C.DBC.DBC.ABCD")]
+    #[case("AA...ADB.C.DBC.DBC.ABCD", "AAB..AD..C.DBC.DBC.ABCD")]
+    #[case("AAB..AD..C.DBC.DBC.ABCD", "AA...AD.BC.DBC.DBC.ABCD")]
+    #[case("AA...AD.BC.DBC.DBC.ABCD", "AA..DAD.BC..BC.DBC.ABCD")]
+    #[case("AA..DAD.BC..BC.DBC.ABCD", "AA...AD.BC..BC.DBCDABCD")]
+    #[case("AA...AD.BC..BC.DBCDABCD", "AAD..AD.BC..BC..BCDABCD")]
+    #[case("AAD..AD.BC..BC..BCDABCD", "A.D..AD.BC..BC.ABCDABCD")]
+    #[case("A.D..AD.BC..BC.ABCDABCD", "..D..AD.BC.ABC.ABCDABCD")]
+    #[case("A.D..AD.BC..BC.ABCDABCD", "..D..AD.BC.ABC.ABCDABCD")]
+    #[case("..D..AD.BC.ABC.ABCDABCD", ".....AD.BC.ABCDABCDABCD")]
+    #[case(".....AD.BC.ABCDABCDABCD", "......DABC.ABCDABCDABCD")]
+    #[case("......DABC.ABCDABCDABCD", ".......ABCDABCDABCDABCD")]
+    fn test_deep_moves(#[case] from: Map, #[case] to: Map) {
+        let m = moves(&from);
+        println!("from:");
+        print_map(&from);
+        println!("to:");
+        print_map(&to);
+        println!("moves:"); 
+        for (map, _) in &m {
+            print_map(map);
+        }
+        assert!(
+            m.iter().filter(|(map, _)| *map == to).count() > 0,
+            "map: {from} should have a move to {to}"
+        );
+    }
+
+    #[rstest]
+    #[case(".....A..BCDABCD", 8)]
+    #[case("...DDA..BC.ABC.", 7000 + 8)]
+    #[case("...D....BCDABCA", 2003 + 7000 + 8)]
+    fn test_solve_example(#[case] map: &str, #[case] energy: u32) {
+        assert_eq!(
+            solve(&map.to_string(), &String::from(WIN_MAP)),
+            energy,
+            "map: {map} should cost energy {energy}"
+        );
+    }
+
+    #[test]
+    fn test_moves_to_lowest_burrow() {
+        // from a hallway into a burrow, the pod should move in the bottom most slot
+        let m = moves(&"...DDA..BC.ABC.".to_string());
+        assert!(
+            m.contains(&("...D.A..BC.ABCD".to_string(), 3000)),
+            "A pod should always move into the lowest empty burrow"
+        );
+    }
+
+    #[test]
+    fn test_pod_does_not_move_to_dirty_burrow() {
+        // from a hallway into a burrow, the pod should move in the bottom most slot
+        let m = moves(&"...DD...BC.ABCA".to_string());
+        assert!(
+            !m.contains(&("...D....BCDABCA".to_string(), 3000)),
+            "A pod should never move into a burrow that contains foreign pods"
+        );
+    }
+
+    #[test]
     fn test_burrow_function() {
         let map = ".......BCBDADCA".to_string();
         assert_eq!(burrow(&'A', &map), vec!['B', 'A']);
@@ -421,6 +622,9 @@ mod tests {
         let map = "..B....BC.DADCA".to_string();
         assert_eq!(may_move(&(8, 'C'), &map), true);
         assert_eq!(may_move(&(13, 'C'), &map), false);
+
+        let map = "AA.CBBDB...DC..DB.CADCA".to_string();
+        assert_eq!(may_move(&(3, 'C'), &map), true);
     }
 
     #[test]
@@ -437,12 +641,80 @@ mod tests {
         assert_eq!(trace(0, 11), vec![1, 7, 11]);
         assert_eq!(trace(1, 7), vec![7]);
         assert_eq!(trace(1, 11), vec![7, 11]);
-        assert_eq!(trace(2, 7), vec![1, 7]);
-        assert_eq!(trace(2, 11), vec![1, 7, 11]);
-        assert_eq!(trace(3, 7), vec![2, 1, 7]);
-        assert_eq!(trace(3, 11), vec![2, 1, 7, 11]);
-        assert_eq!(trace(4, 7), vec![3, 2, 1, 7]);
-        assert_eq!(trace(4, 11), vec![3, 2, 1, 7, 11]);
+        assert_eq!(trace(2, 7), vec![7]);
+        assert_eq!(trace(2, 11), vec![7, 11]);
+        assert_eq!(trace(3, 7), vec![2, 7]);
+        assert_eq!(trace(3, 11), vec![2, 7, 11]);
+        assert_eq!(trace(4, 7), vec![3, 2, 7]);
+        assert_eq!(trace(4, 11), vec![3, 2, 7, 11]);
         assert_eq!(trace(8, 3), vec![3]);
+        assert_eq!(trace(5, 7), vec![4, 3, 2, 7]);
+    }
+
+    #[rstest]
+    // from 0
+    #[case(vec![1, 7], 3)]
+    #[case(vec![1, 2, 8], 5)]
+    #[case(vec![1, 2, 3, 9], 7)]
+    #[case(vec![1, 2, 3, 4, 10], 9)]
+    // from 1
+    #[case(vec![7], 2)]
+    #[case(vec![2, 8], 4)]
+    #[case(vec![2, 3, 9], 6)]
+    #[case(vec![2, 3, 4, 10], 8)]
+    // from 2
+    #[case(vec![8], 2)]
+    #[case(vec![3, 9], 4)]
+    #[case(vec![3, 4, 10], 6)]
+    // from 3
+    #[case(vec![9], 2)]
+    #[case(vec![4, 10], 4)]
+    #[case(vec![2, 7], 4)]
+    // from 4
+    #[case(vec![10], 2)]
+    #[case(vec![3, 8], 4)]
+    #[case(vec![3, 2, 7], 6)]
+    // from 5
+    #[case(vec![4, 9], 4)]
+    #[case(vec![4, 3, 8], 6)]
+    #[case(vec![4, 3, 2, 1], 8)]
+    // from 6
+    #[case(vec![5, 10], 3)]
+    #[case(vec![5, 4, 9], 5)]
+    #[case(vec![5, 4, 3, 8], 7)]
+    #[case(vec![5, 4, 3, 2, 1], 9)]
+    // from 7 (burrow)
+    #[case(vec![1], 2)]
+    #[case(vec![1, 0], 3)]
+    #[case(vec![2], 2)]
+    #[case(vec![2, 3], 4)]
+    #[case(vec![2, 3, 4], 6)]
+    #[case(vec![2, 3, 4, 5], 8)]
+    #[case(vec![2, 3, 4, 5, 6], 9)]
+    // from 8 (burrow)
+    #[case(vec![2, 1], 4)]
+    #[case(vec![2, 1, 0], 5)]
+    #[case(vec![3], 2)]
+    #[case(vec![3, 4], 4)]
+    #[case(vec![3, 4, 5], 6)]
+    #[case(vec![3, 4, 5, 6], 7)]
+    // some cases for deeper in the burrow
+    // from 11
+    #[case(vec![7, 1], 3)]
+    #[case(vec![7, 1, 0], 4)]
+    #[case(vec![7, 2, 3], 5)]
+    // from 16 (B level 3)
+    #[case(vec![12, 8, 3], 4)]
+    // from 21 (C level 4)
+    #[case(vec![17, 13, 9, 4], 5)]
+    fn test_route_steps(#[case] route: Route, #[case] steps: u32) {
+        // from 0
+        assert_eq!(
+            route_steps(&route),
+            steps,
+            "route {:?} should have {} steps",
+            route,
+            steps
+        );
     }
 }
