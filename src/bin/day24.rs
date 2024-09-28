@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 type Int = i32;
 type Cache = HashMap<String, ([Int; 4], usize)>;
+type InputSolution = ([Option<i64>; 14], Int);
 
 #[derive(Debug)]
 struct Alu<'a> {
@@ -194,9 +195,9 @@ impl<'a> Alu<'a> {
         //
         // println!("Starting from pc = {}", self.pc);
         while self.pc < self.program.len() {
-            print!("{}. {:?} \t->\t {:?} \t->\t", self.pc, self.vars, self.program[self.pc]);
+            // print!("{}. {:?} \t->\t {:?} \t->\t", self.pc, self.vars, self.program[self.pc]);
             self.execute(self.program[self.pc]);
-            println!("{:?}", self.vars);
+            // println!("{:?}", self.vars);
             self.pc += 1;
         }
     }
@@ -344,7 +345,7 @@ fn subprog(a: Int, b: Int, c: Int) -> Vec<Instruction> {
 
 fn sub_solutions(search_z: Int, a: Int, b: Int, c: Int) -> Vec<(i64, Int)> {
     let mut solutions = Vec::new();
-    for w in 1..=9 {
+    for w in (1..=9).rev() {
         // inp w
  
         // mul x 0
@@ -370,6 +371,7 @@ fn sub_solutions(search_z: Int, a: Int, b: Int, c: Int) -> Vec<(i64, Int)> {
         // y becomes (x * 25) + 1
         // what's in z gets multiplied by y
         // ------------ z = z * ((x * 25) + 1)
+        // ------------ z_out = z * 26
         //
         // mul y 0
         // add y w
@@ -377,6 +379,7 @@ fn sub_solutions(search_z: Int, a: Int, b: Int, c: Int) -> Vec<(i64, Int)> {
         // mul y x
         // y becomes (w + c) * x
         // ------------ z = z + ((w + c) * x)
+        // ------------ z_out = z + (w + c)
         //
         // add z y
         //
@@ -384,25 +387,26 @@ fn sub_solutions(search_z: Int, a: Int, b: Int, c: Int) -> Vec<(i64, Int)> {
         // To reverse engineer, we're searching for orig_z and w that lead to:
         // search_z = z + ((w + c) * x)
         // // we don't know x yet, but it's either 0 or 1 so:
-        let z_if_x_0 = search_z;
-        let mut z_if_x_1 = search_z - (w + c);
-        // ------------ z = z * ((x * 25) + 1) -- leads to
-        // let z_if_x_0 = z_if_x_0;
-        z_if_x_1 = z_if_x_1 / 26;
-        println!("z_if_x_0: {}, z_if_x_1: {}", z_if_x_0, z_if_x_1);
-        //
-        // ----------- z = orig_z / (a) ------> 1 or 26
-        let orig_z_if_x_0 = z_if_x_0 * (a);
-        let orig_z_if_x_1 = z_if_x_1 * (a);
-        println!("orig_z_if_x_0: {}, orig_z_if_x_1: {}", orig_z_if_x_0, orig_z_if_x_1);
-        //
-        // ----------- if (orig_z % 26) + (b) == w, then x = 0 -- leads to
-        let orig_z_mod_26_if_x_0 = w - b;
-        solutions.push((w as i64, w - b));
-        // ----------- if (orig_z % 26) + (b) != w, then x = 1
-        if orig_z_if_x_1 % 26 + b != w {
-            // solutions.push((w as i64, orig_z_if_x_1));
-        }
+        // let z_if_x_0 = search_z;
+        // let mut z_if_x_1 = search_z - (w + c);
+        // // ------------ z = z * ((x * 25) + 1) -- leads to
+        // // let z_if_x_0 = z_if_x_0;
+        // z_if_x_1 = z_if_x_1 / 26;
+        // println!("z_if_x_0: {}, z_if_x_1: {}", z_if_x_0, z_if_x_1);
+        // //
+        // // ----------- z = orig_z / (a) ------> 1 or 26
+        // let orig_z_if_x_0 = z_if_x_0 * (a);
+        // let orig_z_if_x_1 = z_if_x_1 * (a);
+        // println!("orig_z_if_x_0: {}, orig_z_if_x_1: {}", orig_z_if_x_0, orig_z_if_x_1);
+        // //
+        // // ----------- if (orig_z % 26) + (b) == w, then x = 0 -- leads to
+        // let orig_z_mod_26_if_x_0 = w - b;
+        // solutions.push((w as i64, w - b));
+        // // ----------- if (orig_z % 26) + (b) != w, then x = 1
+        // if orig_z_if_x_1 % 26 + b != w {
+        //     // solutions.push((w as i64, orig_z_if_x_1));
+        // }
+    
 
         // -------------------------------------------------------------
         // attempt 2
@@ -410,24 +414,63 @@ fn sub_solutions(search_z: Int, a: Int, b: Int, c: Int) -> Vec<(i64, Int)> {
         // Z mod 26 = w - b makes x 0
 
         // If a == 26, we can control z after setting x separately by multiplying by 26
-        // ... So z is actually 26d + e if a == 26
-        // And e controls the digit and d the z output. 
-        // e = (w - b)
-        // d = search_z * 26
+        if a == 26 {
+            // ... So z is actually 26d + e if a == 26
+            // And e controls the digit and d the z output. 
+            // e = (w - b)
+            let e = w - b;
+            // d = search_z
+            let d = search_z;
+            let z = 26 * d + e;
+            solutions.push((w as i64, z));
+        } else {
+            // inp w
+            // mul x 0
+            // add x z
+            // mod x 26
+            // ------- x = in_z % 26
+            // add x b
+            // eql x w
+            // eql x 0
+            // ------- x = 0 if (in_z % 26) + b == w
+            // ------- x = 1 if (in_z % 26) + b != w
+            
+            // mul y 0
+            // add y 25
+            // mul y x
+            // add y 1
+            // mul z y
+            // mul y 0
+            // add y w
+            // add y c
+            // mul y x
+            // add z y
+            // ------- out_z_if_x1 = (in_z * 26) + (c + w)
+            // ------- out_z_if_x0 = in_z
+            //
+            if search_z == (c + w) {
+                solutions.push((w as i64, 0));
+            }
 
-        // if a == 1, z after setting x, is z
-        // 
-
-        // If x = 0, z stays z
-        // If x = 1, z is z * 26 + c*w
-
-
-        // If a == 1, out_z = z*26 - c*w
-
-        // reserve
+            if (search_z - (c + w)) % 26 == 0 {
+                solutions.push((w as i64, search_z / 26));
+            }
+        }
     }
     println!("search_z: {} ABC: {},{},{} solutions: {:?}", search_z, a, b, c, solutions);
     solutions
+}
+
+fn inp_sol_string(inp: &[Option<i64>; 14]) -> String {
+    // iterate over the array, print a dot if it's none, and the number otherwise
+    let mut s = String::new();
+    for i in 0..inp.len() {
+        match inp[i] {
+            Some(n) => s.push_str(&n.to_string()),
+            None => s.push('.'),
+        }
+    }
+    s
 }
 
 pub fn main() {
@@ -448,24 +491,69 @@ pub fn main() {
         (26,-15,5)
     ];
 
+    let search_input: InputSolution = ([None; 14], 0);
+    let solution: [i64; 14] = [0; 14];
+    let mut queue: Vec<InputSolution> = vec![search_input];
+    while !queue.is_empty() {
+        let (input, z) = queue.pop().unwrap();
+
+        // if all digits are set, we found a solution!
+        if input.iter().all(|x| x.is_some()) {
+            println!("Found solution: {:?}", inp_sol_string(&input));
+            let solution = input.map(|x| x.unwrap());
+            break;
+        }
+
+
+        // find the last unkwnown digit and its index.
+        let mut i = 13;
+        while i > 0 && input[i].is_some() {
+            i -= 1;
+        }
+
+        println!("Trying input: {:?} with z:{}", inp_sol_string(&input), z);
+
+        // get the program for this digit
+        let (a, b, c) = progs[i];
+        // get solutions
+        let solutions = sub_solutions(z, a, b, c);
+        // add solutions to the queue
+        for (digit, z) in solutions {
+            let mut new_input = input;
+            new_input[i] = Some(digit);
+            queue.push((new_input, z));
+        }
+    }
+
+    return;
+
+
     let mut step = progs.len() - 1;
     let search_z = 0;
 
     let prog = progs[step - 1];
-    let solutions = sub_solutions(24 + (10 * 26), prog.0, prog.1, prog.2);
+    let solutions = sub_solutions(23, prog.0, prog.1, prog.2);
 
     let mut i = 1;
-    for (digit, z) in solutions {
-        let input = create_input(digit);
-        let mut cache = Cache::new();
-        let program = subprog(prog.0, prog.1, prog.2);
+    let search_z = 20;
+    // for (digit, z) in solutions {
+    for digit in (1..=9).rev() {
+        for z in (-2600..=2600) {
+            let input = create_input(digit);
+            let mut cache = Cache::new();
+            let program = subprog(prog.0, prog.1, prog.2);
 
-        let mut alu = Alu::new(&input, &program, &mut cache);
-        alu.vars[3] = z;
-        println!("{}. in:{} / z:{} ---> ", i, digit, alu.vars[3]);
-        alu.run();
-        println!("<----- z: {}", alu.vars[3]);
-        i += 1;
+            let mut alu = Alu::new(&input, &program, &mut cache);
+            alu.vars[3] = z;
+            // print!("{}: {:?} \t\t digit:{} / in_z:{} ---> ", i, prog, digit, alu.vars[3]);
+            alu.run();
+            // println!("\tout_z: {}", alu.vars[3]);
+            i += 1;
+            if alu.vars[3] == search_z {
+                println!("Found solution: digit: {}, z: {}", digit, z);
+                break;
+            }
+        }
     }
 }
 
